@@ -11,8 +11,9 @@ ORG_INDEX_FILE="index.original.html"
 INDEX_FILE="index.html"
 TMP_FOLDER="/tmp/tr-web-control"
 PACK_NAME="master.tar.gz"
-WEB_HOST="https://github.com/ronggang/transmission-web-control/archive/"
-LAST_RELEASES="https://api.github.com/repos/ronggang/transmission-web-control/releases/latest"
+REPO="frank777777777/transmission-web-control"
+WEB_HOST="https://github.com/$REPO/archive/"
+LAST_RELEASES="https://api.github.com/repos/$REPO/releases/latest"
 DOWNLOAD_URL="$WEB_HOST$PACK_NAME"
 # 安装类型
 # 1 安装至当前 Transmission Web 所在目录
@@ -44,14 +45,14 @@ MSG_DOWNLOAD_FAILED="The installation package failed to download. Please try aga
 MSG_INSTALL_COMPLETE="Transmission Web Control Installation Completed!"
 MSG_PACK_EXTRACTING="Extracting installation package..."
 MSG_PACK_CLEANING_UP="Cleaning up the installation package..."
-MSG_DONE="Installation completed. Installation problems see：https://github.com/ronggang/transmission-web-control/wiki "
+MSG_DONE="Installation completed. Installation problems see：https://github.com/frank777777777/transmission-web-control/wiki "
 MSG_SETTING_PERMISSIONS="Setting permissions, It takes about one minute ..."
 MSG_BEGIN="BEGIN"
 MSG_END="END"
 MSG_WGET_NOT_FIND="Could not find curl or wget, please install one."
 MSG_MAIN_MENU="
 	Welcome to the Transmission Web Control Installation Script.
-	Official help documentation: https://github.com/ronggang/transmission-web-control/wiki 
+	Official help documentation: https://github.com/frank777777777/transmission-web-control/wiki 
 	Installation script version: $SCRIPT_VERSION
 
 	1. Install the latest release.
@@ -107,6 +108,8 @@ initValues() {
 
 	# 判断 ROOT_FOLDER 是否为一个有效的目录，如果是则表明传递了一个有效路径
 	if [ -d "$ROOT_FOLDER" ]; then
+		# 根据 Transmission 版本判断 Web 目录名（4.0 起为 public_html）
+		detectWebFolderName
 		showLog "$MSG_TR_WORK_FOLDER $ROOT_FOLDER/$HTML_FOLDER_NAME"
 		INSTALL_TYPE=3
 		WEB_FOLDER="$ROOT_FOLDER/$HTML_FOLDER_NAME"
@@ -147,10 +150,41 @@ main() {
 	clear
 }
 
+# 根据 Transmission 版本判断 Web UI 目录名
+# 2.x / 3.x 使用 web；4.0 起默认改用 public_html
+# 若调用方已确定（如群晖按版本判断为 public_html），则直接跳过
+detectWebFolderName() {
+	[ "$HTML_FOLDER_NAME" = "public_html" ] && return 0
+	local tr_version=""
+	# 优先使用 transmission-remote 获取版本
+	if command -v transmission-remote >/dev/null 2>&1; then
+		tr_version=$(transmission-remote -V 2>&1 | cut -d " " -f 2)
+	fi
+	# 其次使用 transmission-daemon 获取版本
+	if [ -z "$tr_version" ] && command -v transmission-daemon >/dev/null 2>&1; then
+		tr_version=$(transmission-daemon --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -n 1)
+	fi
+	if [ -n "$tr_version" ]; then
+		showLog "transmission version: $tr_version"
+		if [ "${tr_version:0:1}" -ge 4 ] 2>/dev/null; then
+			HTML_FOLDER_NAME="public_html"
+		else
+			HTML_FOLDER_NAME="web"
+		fi
+	else
+		# 无法获取版本时，按目录存在情况判断
+		if [ -n "$ROOT_FOLDER" ] && [ -d "$ROOT_FOLDER/public_html" ]; then
+			HTML_FOLDER_NAME="public_html"
+		fi
+	fi
+}
+
 # 查找Web目录
 findWebFolder() {
 	# 找出web ui 目录
 	showLog "$MSG_SEARCHING_TR_FOLDER"
+	# 根据 Transmission 版本判断 Web 目录名（4.0 起为 public_html）
+	detectWebFolderName
 		
 	# 判断 TRANSMISSION_WEB_HOME 环境变量是否被定义，如果是，直接用这个变量的值
 	if [ $TRANSMISSION_WEB_HOME ]; then
@@ -177,8 +211,68 @@ findWebFolder() {
 	fi
 }
 
+# 首次安装时备份官方 UI（index.html -> index.original.html），便于日后恢复
+backupOriginalUI() {
+	local folder="$1"
+	if [ ! -f "$folder/$ORG_INDEX_FILE" ] && [ -f "$folder/$INDEX_FILE" ]; then
+		mv "$folder/$INDEX_FILE" "$folder/$ORG_INDEX_FILE"
+		showLog "Backed up the original UI to $ORG_INDEX_FILE"
+	fi
+}
+
+# 获取安装包解压后的 UI 文件目录
+# GitHub archive 包的顶层目录为 transmission-web-control-<版本>/，UI 文件在其 src/ 下
+# 旧式平铺包则直接位于指定目录
+getPackSrcDir() {
+	local base="$1" nested
+	nested=$(find "$base" -maxdepth 1 -type d -name 'transmission-web-control-*' | head -n 1)
+	if [ -n "$nested" ] && [ -d "$nested/src" ]; then
+		echo "$nested/src"
+	else
+		echo "$base"
+	fi
+}
+
+# 处理用户自定义的 config.js：询问保留还是使用新版默认配置
+KEEP_CONFIG=0
+askConfig() {
+	if [ ! -f "$WEB_FOLDER/tr-web-control/config.js" ]; then
+		return 0
+	fi
+	if [ $AUTOINSTALL = 1 ]; then
+		# 自动安装时默认保留用户配置
+		KEEP_CONFIG=1
+		cp "$WEB_FOLDER/tr-web-control/config.js" "$TMP_FOLDER/config.js.bak"
+		showLog "Keeping existing config.js (auto install)"
+		return 0
+	fi
+	echo -n "Existing config.js found. Keep your config? [Y/n]: "
+	read answer
+	case "$answer" in
+		n|N)
+		KEEP_CONFIG=0
+		showLog "Will use the new default config.js"
+		;;
+	*)
+		KEEP_CONFIG=1
+		cp "$WEB_FOLDER/tr-web-control/config.js" "$TMP_FOLDER/config.js.bak"
+		showLog "Will keep your existing config.js"
+		;;
+	esac
+}
+
+# 恢复用户自定义的 config.js（仅当用户选择保留时）
+restoreConfig() {
+	if [ $KEEP_CONFIG = 1 ] && [ -f "$TMP_FOLDER/config.js.bak" ]; then
+		cp "$TMP_FOLDER/config.js.bak" "$WEB_FOLDER/tr-web-control/config.js"
+		showLog "Restored your custom config.js"
+	fi
+}
+
 # 安装
 install() {
+	# 询问是否保留用户自定义配置
+	askConfig
 	# 是否指定版本
 	if [ "$VERSION" != "" ]; then
 		showLog "$MSG_TRY_SPECIFIED_VERSION $VERSION"
@@ -192,6 +286,8 @@ install() {
 		cp -r "$TMP_FOLDER/transmission-web-control-$VERSION/src/." "$WEB_FOLDER/"
 		# 设置权限
 		setPermissions "$WEB_FOLDER"
+		# 恢复用户自定义配置
+		restoreConfig
 		# 安装完成
 		installed
 
@@ -205,11 +301,19 @@ install() {
 		# 解压缩包
 		unpack "$HTML_FOLDER_NAME"
 		
+		# 定位包内 UI 文件目录（兼容 GitHub archive 嵌套目录）
+		SRC_DIR=$(getPackSrcDir "$HTML_FOLDER_NAME")
+		
+		# 备份官方 UI
+		backupOriginalUI "$ROOT_FOLDER/$HTML_FOLDER_NAME"
+		
 		showLog "$MSG_PACK_COPYING"
 		# 复制文件到
-		cp -r $HTML_FOLDER_NAME "$ROOT_FOLDER"
+		cp -r "$SRC_DIR/." "$ROOT_FOLDER/$HTML_FOLDER_NAME/"
 		# 设置权限
 		setPermissions "$ROOT_FOLDER"
+		# 恢复用户自定义配置
+		restoreConfig
 		# 安装完成
 		installed
 
@@ -218,8 +322,19 @@ install() {
 		download
 		# 解压缩包
 		unpack "$TRANSMISSION_WEB_HOME"
+		
+		# 定位包内 UI 文件目录（兼容 GitHub archive 嵌套目录）
+		SRC_DIR=$(getPackSrcDir "$TRANSMISSION_WEB_HOME")
+		
+		# 备份官方 UI
+		backupOriginalUI "$TRANSMISSION_WEB_HOME"
+		
+		cp -r "$SRC_DIR/." "$TRANSMISSION_WEB_HOME/"
+		
 		# 设置权限
 		setPermissions "$TRANSMISSION_WEB_HOME"
+		# 恢复用户自定义配置
+		restoreConfig
 		# 安装完成
 		installed
 
@@ -293,11 +408,6 @@ unpack() {
 	else
 		tar -xzf "$PACK_NAME"
 	fi
-	# 如果之前没有安装过，则先将原系统的文件改为
-	if [ ! -f "$WEB_FOLDER/$ORG_INDEX_FILE" -a -f "$WEB_FOLDER/$INDEX_FILE" ]; then
-		mv "$WEB_FOLDER/$INDEX_FILE" "$WEB_FOLDER/$ORG_INDEX_FILE"
-	fi
-
 	# 清除原来的内容
 	if [ -d "$WEB_FOLDER/tr-web-control" ]; then
 		rm -rf "$WEB_FOLDER/tr-web-control"
@@ -467,6 +577,11 @@ getLatestReleases() {
 		showLog "$MSG_WGET_NOT_FIND"
 		exit -1
 	fi
+	# 仓库没有发布 release 时，回退到 master 分支
+	if [ -z "$VERSION" ]; then
+		VERSION="master"
+		showLog "No release found, using master branch"
+	fi
 }
 
 # 检测 Transmission 进程是否存在
@@ -519,7 +634,7 @@ downloadInstallScript() {
 		rm "$SCRIPT_NAME"
 	fi
 	showLog "$MSG_DOWNLOADING_INSTALL_SCRIPT"
-	wget "https://github.com/ronggang/transmission-web-control/raw/master/release/$SCRIPT_NAME" --no-check-certificate
+	wget "https://github.com/$REPO/raw/master/release/$SCRIPT_NAME" --no-check-certificate
 	# 判断是否下载成功
 	if [ $? -eq 0 ]; then
 		showLog "$MSG_INSTALL_SCRIPT_DOWNLOAD_COMPLETE"

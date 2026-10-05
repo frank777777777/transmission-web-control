@@ -59,7 +59,7 @@ var system = {
 	dictionary: {
 		folders: null
 	},
-	checkUpdateScript: "https://api.github.com/repos/ronggang/transmission-web-control/releases/latest",
+	checkUpdateScript: "https://api.github.com/repos/frank777777777/transmission-web-control/releases/latest",
 	contextMenus: {},
 	panel: null,
 	lang: null,
@@ -1661,7 +1661,8 @@ var system = {
 		$("#status_freespace").text(system.lang.dialog["system-config"]["download-dir-free-space"] + " " + tmp);
 	},
 	// Retrieve the torrent information again
-	reloadTorrentBaseInfos: function (ids, moreFields) {
+	// full: 强制全量刷新（不使用 recently-active 增量）
+	reloadTorrentBaseInfos: function (full, ids, moreFields) {
 		if (this.reloading) return;
 		clearTimeout(this.autoReloadTimer);
 		this.reloading = true;
@@ -1671,6 +1672,7 @@ var system = {
 		}
 
 		// Gets all the torrent id information
+		// full: 全量刷新（不使用 recently-active 增量）
 		transmission.torrents.getallids(function (resultTorrents) {
 			var ignore = new Array();
 			for (var index in resultTorrents) {
@@ -1688,7 +1690,7 @@ var system = {
 			} else {
 				system.resetTorrentInfos(oldInfos);
 			}
-		}, ids, moreFields);
+		}, ids, moreFields, full);
 	},
 	// refresh the tree
 	resetTorrentInfos: function (oldInfos) {
@@ -2224,10 +2226,13 @@ var system = {
 		};
 
 		var datas = new Array();
+		// 记录当前节点包含的种子 id，供自动刷新时只拉取当前视图的种子
+		this.currentNodeIds = new Array();
 		for (var index in torrents) {
 			if (!torrents[index]) {
 				return;
 			}
+			this.currentNodeIds.push(torrents[index].id);
 			var status = this.lang.torrent["status-text"][torrents[index].status];
 			// var percentDone = parseFloat(torrents[index].percentDone * 100).toFixed(2);
 			// // Checksum, the use of verification progress
@@ -2364,10 +2369,10 @@ var system = {
 		var datas = {};
 
 		// Initializes the most recently updated data
-		for (var index in transmission.torrents.recently) {
-			var item = transmission.torrents.recently[index];
-			recently[item.id] = true;
-			item = null;
+		// 使用本次拉取到的数据（currentTypeDatas）作为“已更新”集合，
+		// 避免被后续 error 状态子请求覆盖 transmission.torrents.recently 后导致当前视图行不刷新
+		for (var index in currentTypeDatas) {
+			recently[currentTypeDatas[index].id] = true;
 		}
 
 		// Initializes the data under the current type
@@ -3091,7 +3096,8 @@ var system = {
 		this.reloading = false;
 		this.getServerStatus();
 		this.reloading = false;
-		this.reloadTorrentBaseInfos();
+		// 只刷新当前节点视图内的种子，避免拉取全部种子
+		this.reloadTorrentBaseInfos(true, this.currentNodeIds);
 		// enable all icons
 		// this.checkTorrentRow("all", false);
 	},
@@ -3250,9 +3256,9 @@ var system = {
 						var html = result.body.replace(/\r\n/g,"<br/>");
 
 						var toolbar = $("<div style='text-align:right;'/>").appendTo(content);
-						$('<a href="https://github.com/ronggang/transmission-web-control/releases/latest" target="_blank" class="easyui-linkbutton" data-options="iconCls:\'iconfont tr-icon-github\'"/>').html(result.name + " ("+update+")").appendTo(toolbar).linkbutton();
+						$('<a href="https://github.com/frank777777777/transmission-web-control/releases/latest" target="_blank" class="easyui-linkbutton" data-options="iconCls:\'iconfont tr-icon-github\'"/>').html(result.name + " ("+update+")").appendTo(toolbar).linkbutton();
 						$("<span/>").html(" ").appendTo(toolbar);
-						$('<a href="https://github.com/ronggang/transmission-web-control/wiki" target="_blank" class="easyui-linkbutton" data-options="iconCls:\'iconfont tr-icon-help\'"/>').html(system.lang["public"]["text-how-to-update"]).appendTo(toolbar).linkbutton();
+						$('<a href="https://github.com/frank777777777/transmission-web-control/wiki" target="_blank" class="easyui-linkbutton" data-options="iconCls:\'iconfont tr-icon-help\'"/>').html(system.lang["public"]["text-how-to-update"]).appendTo(toolbar).linkbutton();
 						$("<span/>").html(" ").appendTo(toolbar);
 						$('<button onclick="javascript:system.addIgnoreVersion(\''+version+'\');" class="easyui-linkbutton" data-options="iconCls:\'iconfont tr-icon-cancel-checked\'"/>').html(system.lang["public"]["text-ignore-this-version"]).appendTo(toolbar).linkbutton();
 						$("<hr/>").appendTo(content);

@@ -1,24 +1,22 @@
-## 注意：项目不再维护
-> 因项目时间久远，所涉及的技术已过于陈旧，加上本人已没有精力在本项目上进行更新，现决定归档本项目，大家可以使用其他替代项目。
+## 注意：本仓库为 fork，持续维护中
+> 本仓库是 [ronggang/transmission-web-control](https://github.com/ronggang/transmission-web-control) 的 fork，原作者已归档原项目，本 fork 继续维护并适配新版 Transmission。
 >
-> 如您还需要继续使用本项目，目前最好的方式是在 Docker 里使用 2.94 版本，然后设定环境变量指定WebUI，具体可参考（https://www.cnblogs.com/ronggang/p/18788723 ）；或者使用其他已集成的项目。
+> 已适配 Transmission 4.x：安装脚本会自动识别 4.x 的 Web UI 目录（`public_html`），无需再手动指定 `TRANSMISSION_WEB_HOME`。
 >
-> 感谢大家长期以来的支持。
-> 
-> 2025.06.01 栽培者 
+> 2026.10.04 frank777777777
 
 ----
 
 <p align="center">
-<img src="https://github.com/ronggang/transmission-web-control/raw/master/src/tr-web-control/logo.png"><br/>
-<a href="https://github.com/ronggang/transmission-web-control/releases" title="GitHub Releases"><img src="https://img.shields.io/github/release/ronggang/transmission-web-control.svg"></a>
+<img src="https://github.com/frank777777777/transmission-web-control/raw/master/src/tr-web-control/logo.png"><br/>
+<a href="https://github.com/frank777777777/transmission-web-control/releases" title="GitHub Releases"><img src="https://img.shields.io/github/release/frank777777777/transmission-web-control.svg"></a>
 <img src="https://img.shields.io/badge/transmission-%3E=2.40%20(RPC%20%3E14)-green.svg" title="Support Transmission Version">
-<a href="https://github.com/ronggang/transmission-web-control/LICENSE" title="GitHub license"><img src="https://img.shields.io/github/license/ronggang/transmission-web-control.svg"></a>
+<a href="https://github.com/frank777777777/transmission-web-control/LICENSE" title="GitHub license"><img src="https://img.shields.io/github/license/frank777777777/transmission-web-control.svg"></a>
 <a href="https://t.me/transmission_web_control"><img src="https://img.shields.io/badge/Telegram-Chat-blue.svg?logo=telegram" alt="Telegram"/></a>
 </p>
 
 ----
-## [English Introduction](https://github.com/ronggang/transmission-web-control/wiki)
+## [English Introduction](https://github.com/frank777777777/transmission-web-control/wiki)
 
 ## 国内镜像源
 - https://gitee.com/culturist/transmission-web-control
@@ -32,7 +30,7 @@
 ## 界面预览
 ![screenshots](https://user-images.githubusercontent.com/8065899/38598199-0d2e684c-3d8e-11e8-8b21-3cd1f3c7580a.png)
 
-## 安装方法及更多内容，请参考：[中文帮助](https://github.com/ronggang/transmission-web-control/wiki/Home-CN) 
+## 安装方法及更多内容，请参考：[中文帮助](https://github.com/frank777777777/transmission-web-control/wiki/Home-CN) 
 ### DSM7.0
 在这个版本中，需要额外修改权限以实现自动更新的功能
 在 `root` 权限下执行以下命令，其中：
@@ -44,7 +42,7 @@ chown sc-transmission:sc-transmission /var/packages/transmission/target/share/tr
 chmod 774 /var/packages/transmission/target/share/transmission/web/* -R
 ```
 
-## 更新日志 [查看](https://github.com/ronggang/transmission-web-control/blob/master/CHANGELOG.md)
+## 更新日志 [查看](https://github.com/frank777777777/transmission-web-control/blob/master/CHANGELOG.md)
 
 ## 项目日常维护
 * 栽培者

@@ -30,9 +30,9 @@ transmission.torrents = {
 	// New torrents
 	newIds: new Array(),
 	btItems: [],
-	getallids: function(callback, ids, moreFields) {
+	getallids: function(callback, ids, moreFields, full) {
 		var tmp = this.fields.base;
-		if (this.loadSimpleInfo && this.all)
+		if (this.loadSimpleInfo && this.all && !full)
 			tmp = this.fields.status;
 
 		var fields = tmp.split(",");
@@ -46,7 +46,8 @@ transmission.torrents = {
 
 		this.isRecentlyActive = false;
 		// If it has been acquired
-		if (this.all && ids == undefined) {
+		// full: 全量刷新，不传 recently-active，获取所有种子的最新数据
+		if (this.all && ids == undefined && !full) {
 			args["ids"] = "recently-active";
 			this.isRecentlyActive = true;
 		} else if (ids) {

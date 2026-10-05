@@ -1,4 +1,13 @@
 # ChangeLog
+### 2026.10.04 (fork) Transmission 4.x compatibility
+* Fixed
+	* Install script now detects the Transmission 4.x Web UI directory (`public_html`) in addition to the legacy `web` directory, so the UI installs to the folder the daemon actually serves. Previously only Synology got this treatment; on Debian/Arch/etc. the installer wrote to `web/` while the daemon served `public_html/`, leaving the stock UI in place.
+	* Detection is version-based (`transmission-remote`/`transmission-daemon --version`): 4.x and above -> `public_html`, 2.x/3.x -> `web`; falls back to directory presence when the version cannot be determined.
+	* Install script download URLs now point at the fork repository (`frank777777777/transmission-web-control`) so "latest release", "master", and "re-download script" fetch from this fork.
+	* Torrent list per-torrent rates (download/upload speed, peers, etc.) no longer stay frozen for torrents that keep downloading/seeding at a steady rate. The UI's periodic refresh used the `recently-active` RPC filter, which only returns torrents whose state changed in the last 30 seconds, so steady-state torrents kept showing stale rates. The UI now performs a full torrent-get on every auto-reload cycle, so the list refreshes at the interval set in the toolbar (e.g. 5 s).
+* Note
+	* The Web UI itself is compatible with Transmission 4.x RPC (JSON-RPC, rpc-version >= 15): it uses the `free-space` method for the download-dir free space and reads `config-dir` from `session-get`, both of which are still provided by 4.x.
+
 ### 2018.03.30 v1.5.1-update2
 * Fixed
 	* Fix the torrent list to show misplaced bugs; Fixed #169 #170
